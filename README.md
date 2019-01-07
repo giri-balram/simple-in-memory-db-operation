@@ -103,6 +103,10 @@ After you clone the repo in to your project folder the project need to be set up
     
 - Make your storage and bootstrapp folder writable by your application user.
 
+- For inmemory db opeartion we dont need any database connection so we don't need any migration file. To enable inmemory opeartion please set **'IN_MEMORY' env value 'true'** . 
+
+- If you want to use database connection and migration please follow the bellow two point and set **'IN_MEMORY' env value 'false'**. I have used here **'sqlite'** database. 
+
 - Create all the necessary tables need for the application by runing the bellow command.
     
         php artisan migrate
