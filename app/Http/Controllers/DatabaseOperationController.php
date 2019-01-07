@@ -3,6 +3,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Routing\Controller as BaseController;
 use App\Repositories\DatabaseOperationRepository;
+use App\Models\InMemoryDatabase;
 use Illuminate\Support\Facades\DB;
 use App\Exceptions\GeneralException;
 
@@ -12,6 +13,7 @@ class DatabaseOperationController extends BaseController
      * @var DatabaseOperationRepository
      */
     protected $dbOpRepository;
+    protected $inMemoryDb;
 
     /**
      * DatabaseOperationController constructor.
@@ -21,6 +23,7 @@ class DatabaseOperationController extends BaseController
     public function __construct(DatabaseOperationRepository $dbOpRepository)
     {
         $this->dbOpRepository = $dbOpRepository;
+        $this->inMemoryDb = new InMemoryDatabase();
     }
 
     /**
@@ -39,10 +42,87 @@ class DatabaseOperationController extends BaseController
         do {
             $command = trim(fgets(STDIN));
             $commandData = explode(' ', $command);
-            $this->executeCommand($commandData);
-        } while ($command != 'END');
-        fwrite(STDOUT, "-- Thanks You For Executing Me --\n");
+            if( env('IN_MEMORY' )){
+                $this->executeInmemoryCommand($commandData);
+            } else {
+                $this->executeCommand($commandData);
+            }
 
+        } while ($command != 'END');
+        fwrite(STDOUT, "\n-- Thank You For Executing Me --\n");
+    }
+
+    /**
+     * @param string $command
+     *
+     * @return mixed
+     * @throws \App\Exceptions\GeneralException
+     */
+
+    function executeInmemoryCommand( $commandData ){
+        try {
+
+            switch ($commandData[0]) {
+                case 'BEGIN':
+                    $this->inMemoryDb->beginTransaction();
+                    break;
+                case 'ROLLBACK':
+                    $this->inMemoryDb->rollBack();
+                    break;
+                case 'COMMIT':
+                    $this->inMemoryDb->commit();
+                    break;
+                case 'GET':
+                    if (count($commandData) != 2 ) {
+                        echo "Invalid GET command\n";
+                        break;
+                    }
+                    $data = $this->inMemoryDb->get($commandData[1]);
+                    if ($data)
+                        echo  $data."\n";
+                    else
+                        echo "NULL\n";
+                    break;
+                case 'SET':
+                    if (count($commandData) != 3 ) {
+                        echo "Invalid SET command\n";
+                        break;
+                    }
+                    $this->inMemoryDb->setValue($commandData[1], $commandData[2]);
+                    break;
+                case 'UNSET':
+                    if (count($commandData) != 2 ) {
+                        echo "Invalid UNSET command\n";
+                        break;
+                    }
+                    $this->inMemoryDb->delete($commandData[1]);
+
+                    break;
+                case 'NUMEQUALTO':
+                    if (count($commandData) != 2 ) {
+                        echo "Invalid NUMEQUALTO command\n";
+                        break;
+                    }
+                    $data = $this->inMemoryDb->numEqualTo($commandData[1]);
+                    if ($data)
+                        echo $data."\n";
+                    else
+                        echo "0\n";
+
+                    break;
+                case 'END':
+                    $this->inMemoryDb->reset();
+                    break;
+                default:
+                    $this->inMemoryDb->reset();
+                    fwrite(STDOUT, "There is no command found $commandData[0]!\n");
+                    exit(0);
+                    break;
+            }
+
+        } catch(GeneralException $e) {
+            fwrite(STDOUT, $e->getMessage());
+        }
     }
 
     /**
@@ -88,7 +168,7 @@ class DatabaseOperationController extends BaseController
                         echo  $data->value."\n";
                     else
                         echo "NULL\n";
-                    //DB::raw('SELECT value FROM inmemory_operations where name = $commandData[1]');
+
                     //echo $this->dbOpRepository->getData('name',$commandData[1])."\n";
 
                     break;
